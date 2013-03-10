@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html>
+<head lang="en">
+   <meta charset="utf-8">
+   <title>WebGL Mars Heightmap</title>
+   <meta name="description" content="WegGL Heightmap demo">
+   <meta name="keywords" CONTENT="WebGL HeightMap Javascript">
+   <style>
+    </style>
+</head>
+<body>
+    <div id="mars_simulation"></div>
+
+    <script type="text/javascript" src="js/Three.js"></script>
+    <script type="text/javascript" src="js/ShaderTerrain.js"></script>
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+
+    <script type="text/javascript">
+
+    var CONSTANTS = {
+        WIDTH  : 840,
+        HEIGHT : 540,
+
+        VIEW_ANGLE : 45,
+        NEAR : 0.1,
+        FAR  : 10000,
+
+        CAMERA_X : 1300,
+        CAMERA_Y : 900,
+        CAMERA_Z : 2500,
+        
+        LIGHT_X : 4000,
+        LIGHT_Y : 4000,
+        LIGHT_Z : -1000,
+        LIGHT_INTENSITY : 6.5
+    }
+
+    var scene = {};
+    var renderer = {};
+    var camera = {};
+
+    initSimulation();
+
+    function initCamera()
+    {
+        camera = new THREE.PerspectiveCamera(CONSTANTS.VIEW_ANGLE, CONSTANTS.WIDTH / CONSTANTS.HEIGHT, CONSTANTS.NEAR, CONSTANTS.FAR);
+        camera.position.z = CONSTANTS.CAMERA_Z;
+        camera.position.x = CONSTANTS.CAMERA_X;
+        camera.position.y = CONSTANTS.CAMERA_Y;
+        camera.lookAt(scene.position);
+    }
+    
+    function initScene()
+    {
+        scene = new THREE.Scene();
+        scene.add(camera);
+    }
+    
+    function initRenderer()
+    {
+        renderer = new THREE.WebGLRenderer();
+        renderer.setSize(CONSTANTS.WIDTH, CONSTANTS.HEIGHT);
+        renderer.setClearColor(0x0000cc);
+        $("#mars_simulation").append(renderer.domElement);
+    }
+    
+    function initLighting()
+    {
+        pointLight = new THREE.PointLight(0x666666);
+        scene.add(pointLight);
+        pointLight.position.x = CONSTANTS.LIGHT_X;
+        pointLight.position.y = CONSTANTS.LIGHT_Y;
+        pointLight.position.z = CONSTANTS.LIGHT_Z;
+        pointLight.intensity  = CONSTANTS.LIGHT_INTENSITY;
+    }
+    
+    function initSimulation() {
+
+        initRenderer();
+        initScene();
+        initCamera();
+        initLighting();
+
+        var heightMapTexture = THREE.ImageUtils.loadTexture('assets/heightmap.png', null, null);
+        var detailTexture = THREE.ImageUtils.loadTexture('assets/texture.jpg', null, null);
+
+        var terrainShader = THREE.ShaderTerrain[ "terrain" ];
+        var uniformsTerrain = THREE.UniformsUtils.clone(terrainShader.uniforms);
+
+        uniformsTerrain[ "tNormal" ].texture = detailTexture;
+        uniformsTerrain[ "uNormalScale" ].value = 1;
+        uniformsTerrain[ "tDisplacement" ].texture = heightMapTexture;
+        uniformsTerrain[ "uDisplacementScale" ].value = 130;
+        uniformsTerrain[ "tDiffuse1" ].texture = detailTexture;
+        uniformsTerrain[ "tDetail" ].texture = detailTexture;
+        uniformsTerrain[ "enableDiffuse1" ].value = true;
+        uniformsTerrain[ "enableDiffuse2" ].value = true;
+        uniformsTerrain[ "enableSpecular" ].value = true;
+        uniformsTerrain[ "uShininess" ].value = 1;
+
+        var material = new THREE.ShaderMaterial({
+            uniforms:uniformsTerrain,
+            vertexShader:terrainShader.vertexShader,
+            fragmentShader:terrainShader.fragmentShader,
+            lights:true,
+            fog:false
+        });
+
+        var geometryTerrain = new THREE.PlaneGeometry(6000, 10000, 256, 256);
+        geometryTerrain.applyMatrix(new THREE.Matrix4().makeRotationX(Math.PI / 2));
+        geometryTerrain.computeFaceNormals();
+        geometryTerrain.computeVertexNormals();
+        geometryTerrain.computeTangents();
+
+        terrain = new THREE.Mesh(geometryTerrain, material);
+        terrain.position.set(0, 0, 0);
+        terrain.rotation.x = -Math.PI / 2;
+
+        scene.add(terrain);
+        terrain.visible = true;
+        render();
+    }
+
+    var timer = 0.001;
+    function render() {
+        timer = timer + 0.0070;
+        camera.position.x = ( 2.1 * (Math.cos( timer )) * CONSTANTS.CAMERA_X);
+        camera.position.z = ( 2.1 * (Math.sin( timer )) * CONSTANTS.CAMERA_Z);
+        camera.lookAt(scene.position);
+
+        renderer.render(scene, camera);
+        requestAnimationFrame(render);
+    }
+</script>
+</body>
+</html>
